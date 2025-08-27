@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Генератор паролей</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #6dd5ed, #2193b0);
+      color: #fff;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+    }
+    h1 {
+      margin-top: 20px;
+    }
+    .container {
+      background: rgba(0,0,0,0.4);
+      padding: 20px;
+      border-radius: 15px;
+      margin: 20px;
+      width: 90%;
+      max-width: 800px;
+    }
+    input, button, select {
+      padding: 10px;
+      border-radius: 10px;
+      border: none;
+      margin: 5px;
+    }
+    input, select {
+      width: calc(100% - 22px);
+    }
+    button {
+      cursor: pointer;
+      background: #ff9800;
+      color: #fff;
+      font-weight: bold;
+      transition: 0.3s;
+    }
+    button:hover {
+      background: #e68900;
+    }
+    .entry {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(255,255,255,0.1);
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 10px;
+    }
+    .entry span {
+      flex: 1;
+      margin: 0 5px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .actions button {
+      margin-left: 5px;
+      padding: 6px 8px;
+      border-radius: 8px;
+      background: #4caf50;
+    }
+    .actions button:hover {
+      background: #3e8e41;
+    }
+    .generator {
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🔐 Генератор паролей</h1>
+  <div class="container">
+    <div class="generator">
+      <label>Сайт:</label>
+      <input type="text" id="site" placeholder="example.com">
+      <label>Логин:</label>
+      <input type="text" id="login" placeholder="login">
+      <label>Пароль:</label>
+      <input type="text" id="password" placeholder="Сгенерируется автоматически">
+      <label>Сложность пароля:</label>
+      <select id="complexity">
+        <option value="easy">Простой</option>
+        <option value="medium" selected>Средний</option>
+        <option value="hard">Сложный</option>
+      </select>
+      <button onclick="generatePassword()">Сгенерировать пароль</button>
+      <button onclick="saveEntry()">Сохранить</button>
+    </div>
+    <h2>История</h2>
+    <div id="history"></div>
+  </div>
+
+  <script>
+    let entries = [];
+
+    function encrypt(text, key="secret") {
+      return btoa(text.split('').map((c,i)=>String.fromCharCode(c.charCodeAt(0)^key.charCodeAt(i%key.length))).join(''));
+    }
+    function decrypt(text, key="secret") {
+      let decoded = atob(text);
+      return decoded.split('').map((c,i)=>String.fromCharCode(c.charCodeAt(0)^key.charCodeAt(i%key.length))).join('');
+    }
+
+    function generatePassword() {
+      const level = document.getElementById("complexity").value;
+      let chars = "";
+      let length = 8;
+      if (level === "easy") {
+        chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+        length = 8;
+      } else if (level === "medium") {
+        chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        length = 12;
+      } else if (level === "hard") {
+        chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+-=[]{}|;:,.<>?";
+        length = 20;
+      }
+      let pass = "";
+      for (let i=0; i<length; i++) pass += chars[Math.floor(Math.random()*chars.length)];
+      document.getElementById("password").value = pass;
+    }
+
+    function saveEntry() {
+        const site = document.getElementById("site").value.trim();
+        const login = document.getElementById("login").value.trim();
+        const password = document.getElementById("password").value.trim();
+        if (!site || !login || !password) { alert("Заполните все поля!"); return; }
+
+        const newEntry = {
+            site: encrypt(site),
+            login: encrypt(login),
+            password: encrypt(password)
+        };
+
+        let local = [];
+        const saved = localStorage.getItem("passwordEntries");
+        if (saved) {
+            try { local = JSON.parse(saved); } catch {}
+        }
+        local.push(newEntry);
+        localStorage.setItem("passwordEntries", JSON.stringify(local));
+
+        entries.push(newEntry);
+        document.getElementById("site").value="";
+        document.getElementById("login").value="";
+        document.getElementById("password").value="";
+        renderHistory();
+        }
+
+    document.getElementById("complexity").addEventListener("change", generatePassword);
+
+    function renderHistory() {
+        const history = document.getElementById("history");
+        history.innerHTML = "";
+        entries.forEach((e,i)=>{
+            const site = decrypt(e.site);
+            const login = decrypt(e.login);
+            const password = decrypt(e.password);
+
+            const div = document.createElement("div");
+            div.className = "entry";
+
+            div.innerHTML = `
+            <span>🌐 ${site}</span>
+            <span>👤 ${login}</span>
+            <span>🔑 ${password}</span>
+            <div class="actions">
+                <button onclick="copyText('${login}')">📋</button>
+                <button onclick="copyText('${password}')">🔑</button>
+                <button onclick="openSite('${site}')">🔗</button>
+                <button onclick="deleteEntry(${i})">🗑</button>
+            </div>`;
+            history.appendChild(div);
+        });
+    }
+
+    function deleteEntry(index) {
+        const removed = entries.splice(index, 1)[0];
+
+        const local = localStorage.getItem("passwordEntries");
+        if (local) {
+            try {
+            let userData = JSON.parse(local);
+            userData = userData.filter(e =>
+                !(e.site === removed.site && e.login === removed.login && e.password === removed.password)
+            );
+            localStorage.setItem("passwordEntries", JSON.stringify(userData));
+            } catch {}
+        }
+
+        renderHistory();
+    }
+
+    function copyText(text) {
+      navigator.clipboard.writeText(text);
+      alert("Скопировано: " + text);
+    }
+
+    function openSite(url) {
+      if (!url.startsWith("http")) url = "https://" + url;
+      window.open(url, "_blank");
+    }
+
+    window.onload = async ()=>{
+        await loadEntries();
+        const data = localStorage.getItem("passwordEntries");
+        if (data) {
+            try { entries = JSON.parse(data); renderHistory(); } catch {}
+        }
+    };
+
+    async function loadEntries() {
+        try {
+            const response = await fetch("passwords.json");
+            const baseData = await response.json();
+            entries = baseData;
+
+            const local = localStorage.getItem("passwordEntries");
+            if (local) {
+                try {
+                    const userData = JSON.parse(local);
+                    entries = [...baseData, ...userData];
+                } catch {}
+            }
+            renderHistory();
+        } catch (e) {
+            console.log("Не удалось загрузить passwords.json:", e);
+        }
+    }
+
+    document.getElementById("login").addEventListener("input", ()=>{
+      if (!document.getElementById("password").value) generatePassword();
+    });
+  </script>
+</body>
+</html>
