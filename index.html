@@ -157,30 +157,44 @@
     document.getElementById("complexity").addEventListener("change", generatePassword);
 
     function renderHistory() {
-        const history = document.getElementById("history");
-        history.innerHTML = "";
-        entries.forEach((e,i)=>{
-            const site = decrypt(e.site);
-            const login = decrypt(e.login);
-            const password = decrypt(e.password);
-
-            const div = document.createElement("div");
-            div.className = "entry";
-
-            div.innerHTML = `
-            <span>🌐 ${site}</span>
-            <span>👤 ${login}</span>
-            <span>🔑 ${password}</span>
-            <div class="actions">
-                <button onclick="copyText('${login}')">📋</button>
-                <button onclick="copyText('${password}')">🔑</button>
-                <button onclick="openSite('${site}')">🔗</button>
-                <button onclick="deleteEntry(${i})">🗑</button>
-            </div>`;
-            history.appendChild(div);
-        });
+      const history = document.getElementById("history");
+      history.innerHTML = "";
+      entries.forEach((e,i)=>{
+        const site = decrypt(e.site);
+        const login = decrypt(e.login);
+        const password = decrypt(e.password);
+    
+        const div = document.createElement("div");
+        div.className = "entry";
+    
+        const masked = "•".repeat(password.length);
+    
+        div.innerHTML = `
+          <span>🌐 ${site}</span>
+          <span>👤 ${login}</span>
+          <span class="password" onclick="togglePassword(this, '${password}')">🔑 ${masked}</span>
+          <div class="actions">
+            <button onclick="copyText('${login}')">📋</button>
+            <button onclick="copyText('${password}')">🔑</button>
+            <button onclick="openSite('${site}')">🔗</button>
+            <button onclick="deleteEntry(${i})">🗑</button>
+          </div>`;
+        history.appendChild(div);
+      });
     }
 
+    function togglePassword(span, password) {
+      if (span.dataset.visible === "true") return;
+    
+      span.textContent = "🔑 " + password;
+      span.dataset.visible = "true";
+    
+      setTimeout(()=>{
+        span.textContent = "🔑 " + "•".repeat(password.length);
+        span.dataset.visible = "false";
+      }, 10000); // 10 секунд
+    }
+    
     function deleteEntry(index) {
         const removed = entries.splice(index, 1)[0];
 
